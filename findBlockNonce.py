@@ -13,48 +13,38 @@ def mine_block(k, prev_hash, rand_lines):
     Complete this function to find a nonce such that 
     sha256( prev_hash + rand_lines + nonce )
     has k trailing zeros in its *binary* representation
-    
-    Find a nonce that produces a hash with k trailing zeros in binary representation.
-    
-    Args:
-        k (int): Number of required trailing zeros
-        prev_hash (bytes): Hash of the previous block
-        rand_lines (list): List of strings representing transactions
-    
-    Returns:
-        bytes: A nonce that produces a hash with k trailing zeros
     """
     if not isinstance(k, int) or k < 0:
         print("mine_block expects positive integer")
         return b'\x00'
         
-    def check_trailing_zeros(hash_bytes, k):
-        # Convert the last byte to binary and check trailing zeros
-        binary_str = ''.join(format(b, '08b') for b in hash_bytes)
-        return binary_str.endswith('0' * k)
+    def zero_check(hash_result, zeros_needed):
+        # Get binary string and look for trailing zeros
+        bits = ''.join(bin(x)[2:].zfill(8) for x in hash_result)
+        return bits.endswith('0' * zeros_needed)
         
-    def combine_data(prev_hash, rand_lines, nonce):
-        # Combine all data that needs to be hashed
-        m = hashlib.sha256()
-        m.update(prev_hash)
-        for line in rand_lines:
-            m.update(line.encode('utf-8'))
-        m.update(nonce)
-        return m.digest()
+    def hash_everything(block_prev, tx_lines, try_nonce):
+        # Hash concatenation of previous block, transactions and nonce
+        mixer = hashlib.sha256()
+        mixer.update(block_prev)
+        for tx in tx_lines:
+            mixer.update(tx.encode('utf-8'))
+        mixer.update(try_nonce)
+        return mixer.digest()
     
-    nonce_counter = 0
+    attempt = 0
     while True:
-        # Convert counter to bytes with fixed width to ensure consistent hashing
-        nonce = nonce_counter.to_bytes(32, byteorder='big')
+        # Pack current attempt as bytes
+        test_nonce = attempt.to_bytes(32, byteorder='big')
         
-        # Get the hash of combined data
-        current_hash = combine_data(prev_hash, rand_lines, nonce)
+        # Try this nonce
+        result = hash_everything(prev_hash, rand_lines, test_nonce)
         
-        # Check if we found a valid nonce
-        if check_trailing_zeros(current_hash, k):
-            return nonce
+        # Found valid nonce?
+        if zero_check(result, k):
+            return test_nonce
             
-        nonce_counter += 1
+        attempt += 1
 
 
 def get_random_lines(filename, quantity):
